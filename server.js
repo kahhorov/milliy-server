@@ -1,16 +1,26 @@
-const jsonServer = require("json-server");
-const path = require("path");
+import express from "express";
+import cors from "cors";
+import { readFileSync, writeFileSync } from "fs";
 
-const server = jsonServer.create();
-const router = jsonServer.router(path.join(__dirname, "db.json"));
-const middlewares = jsonServer.defaults();
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-const PORT = 3001;
+const DB_PATH = "./db.json";
 
-server.use(middlewares);
-server.use(jsonServer.bodyParser);
-server.use("/api", router);
-
-server.listen(PORT, () => {
-  console.log(`✅ JSON Server ishga tushdi: http://localhost:${PORT}/api`);
+// GET
+app.get("/data", (req, res) => {
+  const data = JSON.parse(readFileSync(DB_PATH));
+  res.json(data);
 });
+
+// POST
+app.post("/data", (req, res) => {
+  const data = JSON.parse(readFileSync(DB_PATH));
+  data.items.push(req.body);
+  writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+  res.json({ message: "Qo‘shildi!" });
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log("Server ishlayapti: " + PORT));
