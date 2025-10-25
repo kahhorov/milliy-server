@@ -1,26 +1,37 @@
 import express from "express";
+import fs from "fs";
 import cors from "cors";
-import { readFileSync, writeFileSync } from "fs";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const DB_PATH = "./db.json";
+const PORT = process.env.PORT || 10000;
 
-// GET
+// JSON fayldan ma'lumotni o‘qish
+function readDB() {
+  const data = fs.readFileSync("./db.json", "utf-8");
+  return JSON.parse(data);
+}
+
+// Barcha ma'lumotlarni ko‘rish
 app.get("/data", (req, res) => {
-  const data = JSON.parse(readFileSync(DB_PATH));
+  const data = readDB();
   res.json(data);
 });
 
-// POST
-app.post("/data", (req, res) => {
-  const data = JSON.parse(readFileSync(DB_PATH));
-  data.items.push(req.body);
-  writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-  res.json({ message: "Qo‘shildi!" });
+// Faqat users uchun
+app.get("/users", (req, res) => {
+  const data = readDB();
+  res.json(data.users || []);
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log("Server ishlayapti: " + PORT));
+// Faqat attendanceHistory uchun
+app.get("/attendanceHistory", (req, res) => {
+  const data = readDB();
+  res.json(data.attendanceHistory || []);
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
