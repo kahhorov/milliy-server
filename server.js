@@ -27,22 +27,22 @@ function writeDB(data) {
 }
 
 // ---------------------
-// 🔹 Foydalanuvchilarni olish
+// 🔹 USERS ENDPOINTS
 // ---------------------
+
+// GET /users - barcha foydalanuvchilar
 app.get("/users", (req, res) => {
-  const db = readDB();
-  res.json(db.users || []);
+  const data = readDB();
+  res.json(data.users || []);
 });
 
-// ---------------------
-// 🔹 Foydalanuvchi qo‘shish
-// ---------------------
+// POST /users - yangi foydalanuvchi qo‘shish
 app.post("/users", (req, res) => {
   try {
     const db = readDB();
-    const newUser = req.body;
+    if (!db.users) db.users = [];
 
-    // ID va order avtomatik beriladi
+    // id avtomatik beriladi: oxirgi id +1
     const newId =
       db.users.length > 0 ? Math.max(...db.users.map((u) => u.id || 0)) + 1 : 1;
     const newOrder =
@@ -50,10 +50,7 @@ app.post("/users", (req, res) => {
         ? Math.max(...db.users.map((u) => u.order || 0)) + 1
         : 1;
 
-    newUser.id = newId;
-    newUser.order = newOrder;
-    newUser.checked = false;
-
+    const newUser = { id: newId, order: newOrder, checked: false, ...req.body };
     db.users.push(newUser);
     writeDB(db);
 
@@ -64,45 +61,138 @@ app.post("/users", (req, res) => {
   }
 });
 
-// ---------------------
-// 🔹 Foydalanuvchini tahrirlash
-// ---------------------
+// PATCH /users/:id - foydalanuvchini yangilash
 app.patch("/users/:id", (req, res) => {
   try {
     const db = readDB();
     const id = Number(req.params.id);
-    const userIndex = db.users.findIndex((u) => u.id === id);
-    if (userIndex === -1)
-      return res
-        .status(404)
-        .json({ success: false, message: "User topilmadi!" });
+    const index = db.users.findIndex((u) => u.id === id);
+    if (index === -1)
+      return res.status(404).json({ message: "Foydalanuvchi topilmadi" });
 
-    db.users[userIndex] = { ...db.users[userIndex], ...req.body };
+    db.users[index] = { ...db.users[index], ...req.body };
     writeDB(db);
-
-    res.json(db.users[userIndex]);
+    res.json(db.users[index]);
   } catch (err) {
     console.error("❌ PATCH /users/:id xatolik:", err);
     res.status(500).json({ success: false, message: "Serverda xatolik!" });
   }
 });
 
-// ---------------------
-// 🔹 Foydalanuvchini o‘chirish
-// ---------------------
+// DELETE /users/:id - foydalanuvchini o‘chirish
 app.delete("/users/:id", (req, res) => {
   try {
     const db = readDB();
     const id = Number(req.params.id);
     db.users = db.users.filter((u) => u.id !== id);
     writeDB(db);
-    res.json({ success: true, message: "User o‘chirildi!" });
+    res.json({ success: true, message: "Foydalanuvchi o‘chirildi!" });
   } catch (err) {
     console.error("❌ DELETE /users/:id xatolik:", err);
     res.status(500).json({ success: false, message: "Serverda xatolik!" });
   }
 });
 
+// ---------------------
+// 🔹 ATTENDANCE HISTORY ENDPOINTS (sizning eski kod)
+// ---------------------
+
+app.get("/attendanceHistory", (req, res) => {
+  const data = readDB();
+  res.json(data.attendanceHistory || []);
+});
+
+app.post("/attendanceHistory", (req, res) => {
+  try {
+    const db = readDB();
+    const newRecord = req.body;
+
+    if (!db.attendanceHistory) db.attendanceHistory = [];
+    const newId =
+      db.attendanceHistory.length > 0
+        ? Math.max(...db.attendanceHistory.map((r) => r.id || 0)) + 1
+        : 1;
+    newRecord.id = newId;
+
+    db.attendanceHistory.push(newRecord);
+    writeDB(db);
+
+    res.status(201).json({ success: true, message: "Davomat saqlandi!" });
+  } catch (err) {
+    console.error("❌ POST /attendanceHistory xatolik:", err);
+    res.status(500).json({ success: false, message: "Serverda xatolik!" });
+  }
+});
+
+app.delete("/attendanceHistory/:id", (req, res) => {
+  try {
+    const db = readDB();
+    const id = Number(req.params.id);
+    db.attendanceHistory = db.attendanceHistory.filter(
+      (item) => item.id !== id
+    );
+    writeDB(db);
+
+    res.json({ success: true, message: "Davomat o‘chirildi!" });
+  } catch (err) {
+    console.error("❌ DELETE /attendanceHistory/:id xatolik:", err);
+    res.status(500).json({ success: false, message: "Serverda xatolik!" });
+  }
+});
+
+app.put("/attendanceHistory/:id", (req, res) => {
+  try {
+    const db = readDB();
+    const id = Number(req.params.id);
+    const updatedRecord = req.body;
+
+    const index = db.attendanceHistory.findIndex((r) => r.id === id);
+    if (index === -1)
+      return res.status(404).json({ success: false, message: "Topilmadi!" });
+
+    db.attendanceHistory[index] = {
+      ...db.attendanceHistory[index],
+      ...updatedRecord,
+    };
+
+    writeDB(db);
+    res.json({ success: true, message: "Davomat yangilandi!" });
+  } catch (err) {
+    console.error("❌ PUT /attendanceHistory/:id xatolik:", err);
+    res.status(500).json({ success: false, message: "Serverda xatolik!" });
+  }
+});
+
+app.put("/attendanceHistory/:id/student/:studentIndex", (req, res) => {
+  try {
+    const db = readDB();
+    const id = Number(req.params.id);
+    const studentIndex = Number(req.params.studentIndex);
+    const updateData = req.body;
+
+    const record = db.attendanceHistory.find((r) => r.id === id);
+    if (!record)
+      return res
+        .status(404)
+        .json({ success: false, message: "Davomat topilmadi!" });
+    if (!record.students[studentIndex])
+      return res
+        .status(404)
+        .json({ success: false, message: "O‘quvchi topilmadi!" });
+
+    record.students[studentIndex] = {
+      ...record.students[studentIndex],
+      ...updateData,
+    };
+    writeDB(db);
+    res.json({ success: true, message: "O‘quvchi holati yangilandi!" });
+  } catch (err) {
+    console.error("❌ Student PUT xatolik:", err);
+    res.status(500).json({ success: false, message: "Serverda xatolik!" });
+  }
+});
+
+// ---------------------
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
