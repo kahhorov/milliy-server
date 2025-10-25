@@ -9,7 +9,7 @@ app.use(express.json());
 const PORT = process.env.PORT || 10000;
 const DB_PATH = "./db.json";
 
-// 🔹 JSON fayldan ma'lumotni o‘qish
+// 🔹 JSON fayldan o‘qish
 function readDB() {
   const data = fs.readFileSync(DB_PATH, "utf-8");
   return JSON.parse(data);
@@ -28,27 +28,97 @@ app.get("/data", (req, res) => {
   res.json(data);
 });
 
+// ---------------------
+// 🔹 USERS API
+// ---------------------
+
 // 🔹 Foydalanuvchilarni olish
 app.get("/users", (req, res) => {
   const data = readDB();
   res.json(data.users || []);
 });
 
-// 🔹 Davomat tarixini olish
+// 🔹 Foydalanuvchini qo‘shish
+app.post("/users", (req, res) => {
+  try {
+    const db = readDB();
+    const newUser = req.body;
+
+    if (!db.users) db.users = [];
+
+    const newId =
+      db.users.length > 0 ? Math.max(...db.users.map((u) => u.id || 0)) + 1 : 1;
+
+    const userWithId = { id: newId, ...newUser };
+    db.users.push(userWithId);
+    writeDB(db);
+
+    res
+      .status(201)
+      .json({
+        success: true,
+        message: "Foydalanuvchi qo‘shildi!",
+        user: userWithId,
+      });
+  } catch (err) {
+    console.error("❌ User POST xatolik:", err);
+    res.status(500).json({ success: false, message: "Server xatolik!" });
+  }
+});
+
+// 🔹 Foydalanuvchini tahrirlash
+app.patch("/users/:id", (req, res) => {
+  try {
+    const db = readDB();
+    const id = Number(req.params.id);
+    const updatedUser = req.body;
+
+    const index = db.users.findIndex((u) => u.id === id);
+    if (index === -1)
+      return res
+        .status(404)
+        .json({ success: false, message: "Foydalanuvchi topilmadi!" });
+
+    db.users[index] = { ...db.users[index], ...updatedUser };
+    writeDB(db);
+
+    res.json({ success: true, message: "Foydalanuvchi yangilandi!" });
+  } catch (err) {
+    console.error("❌ PATCH xatolik:", err);
+    res.status(500).json({ success: false, message: "Server xatolik!" });
+  }
+});
+
+// 🔹 Foydalanuvchini o‘chirish
+app.delete("/users/:id", (req, res) => {
+  try {
+    const db = readDB();
+    const id = Number(req.params.id);
+    db.users = db.users.filter((u) => u.id !== id);
+    writeDB(db);
+    res.json({ success: true, message: "Foydalanuvchi o‘chirildi!" });
+  } catch (err) {
+    console.error("❌ DELETE xatolik:", err);
+    res.status(500).json({ success: false, message: "Server xatolik!" });
+  }
+});
+
+// ---------------------
+// 🔹 ATTENDANCE HISTORY API
+// ---------------------
+
+// 🔹 Davomatni olish
 app.get("/attendanceHistory", (req, res) => {
   const data = readDB();
   res.json(data.attendanceHistory || []);
 });
 
-// ---------------------
 // 🔹 Davomatni saqlash (POST)
-// ---------------------
 app.post("/attendanceHistory", (req, res) => {
   try {
     const db = readDB();
     const newRecord = req.body;
 
-    // ID avtomatik beriladi
     if (!db.attendanceHistory) db.attendanceHistory = [];
     const newId =
       db.attendanceHistory.length > 0
@@ -66,9 +136,7 @@ app.post("/attendanceHistory", (req, res) => {
   }
 });
 
-// ---------------------
 // 🔹 Davomatni o‘chirish (DELETE)
-// ---------------------
 app.delete("/attendanceHistory/:id", (req, res) => {
   try {
     const db = readDB();
@@ -82,68 +150,6 @@ app.delete("/attendanceHistory/:id", (req, res) => {
     res.json({ success: true, message: "Davomat o‘chirildi!" });
   } catch (err) {
     console.error("❌ DELETE xatolik:", err);
-    res.status(500).json({ success: false, message: "Serverda xatolik!" });
-  }
-});
-
-// ---------------------
-// 🔹 Davomatni tahrirlash (PUT)
-// ---------------------
-// PUT /attendanceHistory/:id  -> butun davomatni yangilash
-// yoki PUT /attendanceHistory/:id/student/:studentIndex -> bitta o‘quvchini yangilash
-app.put("/attendanceHistory/:id", (req, res) => {
-  try {
-    const db = readDB();
-    const id = Number(req.params.id);
-    const updatedRecord = req.body;
-
-    const index = db.attendanceHistory.findIndex((r) => r.id === id);
-    if (index === -1)
-      return res.status(404).json({ success: false, message: "Topilmadi!" });
-
-    db.attendanceHistory[index] = {
-      ...db.attendanceHistory[index],
-      ...updatedRecord,
-    };
-
-    writeDB(db);
-    res.json({ success: true, message: "Davomat yangilandi!" });
-  } catch (err) {
-    console.error("❌ PUT xatolik:", err);
-    res.status(500).json({ success: false, message: "Serverda xatolik!" });
-  }
-});
-
-// 🔹 Faqat bitta o‘quvchini yangilash (masalan statusni o‘zgartirish)
-app.put("/attendanceHistory/:id/student/:studentIndex", (req, res) => {
-  try {
-    const db = readDB();
-    const id = Number(req.params.id);
-    const studentIndex = Number(req.params.studentIndex);
-    const updateData = req.body; // { status: "keldi", delay: "5 daqiqa" }
-
-    const record = db.attendanceHistory.find((r) => r.id === id);
-    if (!record) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Davomat topilmadi!" });
-    }
-
-    if (!record.students[studentIndex]) {
-      return res
-        .status(404)
-        .json({ success: false, message: "O‘quvchi topilmadi!" });
-    }
-
-    record.students[studentIndex] = {
-      ...record.students[studentIndex],
-      ...updateData,
-    };
-
-    writeDB(db);
-    res.json({ success: true, message: "O‘quvchi holati yangilandi!" });
-  } catch (err) {
-    console.error("❌ Student PUT xatolik:", err);
     res.status(500).json({ success: false, message: "Serverda xatolik!" });
   }
 });
