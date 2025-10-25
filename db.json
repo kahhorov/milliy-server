@@ -44,7 +44,7 @@
         "Payshanba",
         "Shanba"
       ],
-      "checked": true
+      "checked": false
     },
     {
       "id": "ab3a",
@@ -153,5 +153,24 @@
       "checked": false
     }
   ],
-  "attendanceHistory": []
+  "attendanceHistory": [
+    {
+      "id": 1761392375275,
+      "date": "2025-10-25",
+      "year": "2025",
+      "month": "Oktabr",
+      "day": "Shanba",
+      "time": "18:00",
+      "students": [
+        {
+          "fullName": "Sherjahon Qahhorov",
+          "status": "keldi"
+        },
+        {
+          "fullName": "Muhammadyaxyo Azamov",
+          "status": "keldi"
+        }
+      ]
+    }
+  ]
 }
